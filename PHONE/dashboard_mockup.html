@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Phone Data Quality — Firmable</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f4f6fa; color: #1e2235; font-size: 14px; }
+
+  .header { background: linear-gradient(135deg, #0f172a 0%, #134e4a 100%); color: white; padding: 20px 36px; display: flex; justify-content: space-between; align-items: center; }
+  .header-left h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-left p { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .live-badge { background: #00d4aa20; color: #00d4aa; border: 1px solid #00d4aa50; padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .live-dot { width: 6px; height: 6px; background: #00d4aa; border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .run-info { font-size: 12px; color: #64748b; text-align: right; }
+  .run-info strong { color: #94a3b8; display: block; }
+
+  .tabs { background: white; border-bottom: 2px solid #e8ecf4; padding: 0 36px; display: flex; }
+  .tab { padding: 15px 22px; font-size: 13px; font-weight: 500; cursor: pointer; border-bottom: 3px solid transparent; margin-bottom: -2px; color: #64748b; transition: all 0.2s; }
+  .tab:hover { color: #0d9488; }
+  .tab.active { border-bottom-color: #0d9488; color: #0d9488; font-weight: 600; }
+
+  .page { display: none; padding: 28px 36px 48px; }
+  .page.active { display: block; }
+
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #94a3b8; margin-bottom: 14px; margin-top: 28px; }
+  .section-title:first-child { margin-top: 0; }
+
+  .card { background: white; border-radius: 14px; border: 1px solid #e8ecf4; padding: 22px 26px; }
+  .card-head { font-size: 14px; font-weight: 700; color: #1e2235; margin-bottom: 4px; }
+  .card-sub { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; margin-bottom: 16px; }
+  .mb16 { margin-bottom: 16px; }
+
+  .stat { background: white; border-radius: 14px; border: 1px solid #e8ecf4; padding: 20px 22px; position: relative; overflow: hidden; }
+  .stat-accent { position: absolute; top: 0; left: 0; width: 100%; height: 3px; }
+  .stat-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 10px; font-weight: 600; }
+  .stat-value { font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -0.5px; }
+  .stat-detail { font-size: 11px; color: #94a3b8; margin-top: 6px; line-height: 1.5; }
+  .stat-note { font-size: 11px; margin-top: 6px; font-weight: 500; }
+  .up { color: #10b981; } .down { color: #ef4444; }
+
+  .metric-def { background: #f8fafc; border: 1px solid #e8ecf4; border-radius: 10px; padding: 14px 16px; }
+  .metric-def-title { font-size: 12px; font-weight: 700; color: #1e2235; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .metric-def-formula { font-size: 11px; font-family: monospace; background: #e8ecf4; border-radius: 4px; padding: 4px 8px; color: #374151; margin-bottom: 6px; display: inline-block; }
+  .metric-def-desc { font-size: 11px; color: #64748b; line-height: 1.6; }
+
+  .q-score-card { background: white; border: 2px solid #0d9488; border-radius: 14px; padding: 22px 26px; }
+  .q-dims { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  .q-dim { display: flex; align-items: center; gap: 10px; }
+  .q-dim-label { font-size: 11px; color: #64748b; width: 100px; }
+  .q-dim-bar { flex: 1; height: 6px; background: #f1f5f9; border-radius: 3px; }
+  .q-dim-fill { height: 100%; border-radius: 3px; }
+  .q-dim-val { font-size: 12px; font-weight: 700; color: #1e2235; width: 36px; text-align: right; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f8fafc; padding: 10px 14px; text-align: left; font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; border-bottom: 2px solid #e8ecf4; white-space: nowrap; }
+  td { padding: 11px 14px; border-bottom: 1px solid #f1f5f9; color: #374151; font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafbff; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  .pill { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .pill.g  { background: #d1fae5; color: #065f46; }
+  .pill.y  { background: #fef3c7; color: #92400e; }
+  .pill.r  { background: #fee2e2; color: #991b1b; }
+  .pill.b  { background: #dbeafe; color: #1e40af; }
+  .pill.gy { background: #f1f5f9; color: #475569; }
+
+  .ms { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+  .ms.g  { background: #d1fae5; color: #065f46; }
+  .ms.y  { background: #fef3c7; color: #92400e; }
+  .ms.r  { background: #fee2e2; color: #991b1b; }
+  .ms-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .ms.g .ms-dot { background: #10b981; }
+  .ms.y .ms-dot { background: #f59e0b; }
+  .ms.r .ms-dot { background: #ef4444; }
+
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+  .bar-country { font-size: 12px; font-weight: 700; color: #374151; width: 28px; }
+  .bar-track { flex: 1; background: #f1f5f9; border-radius: 4px; height: 22px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; min-width: 2px; }
+  .bar-fill span { font-size: 11px; font-weight: 700; color: white; white-space: nowrap; }
+  .bar-val { font-size: 12px; font-weight: 700; color: #374151; width: 44px; text-align: right; }
+
+  .hmap { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .hmap th { padding: 9px 10px; background: #f8fafc; font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; border: 1px solid #e8ecf4; font-weight: 700; text-align: center; }
+  .hmap th:first-child { text-align: left; }
+  .hmap td { padding: 9px 10px; border: 1px solid #e8ecf4; text-align: center; font-weight: 700; font-size: 12px; }
+  .hmap td:first-child { text-align: left; font-weight: 700; color: #1e2235; background: #f8fafc; }
+  .h0{background:#d1fae5;color:#065f46} .h1{background:#fef9c3;color:#854d0e}
+  .h2{background:#fed7aa;color:#9a3412} .h3{background:#fecaca;color:#991b1b} .h4{background:#f87171;color:white}
+
+  .issue-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 16px; }
+  .issue-card { border-radius: 12px; padding: 18px 20px; border: 1px solid; }
+  .ic-critical { background: #fff5f5; border-color: #fecaca; }
+  .ic-warning  { background: #fffbeb; border-color: #fde68a; }
+  .ic-info     { background: #eff6ff; border-color: #bfdbfe; }
+  .ic-neutral  { background: #f8fafc; border-color: #e2e8f0; }
+  .issue-tag  { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .ic-critical .issue-tag { color: #b91c1c; }
+  .ic-warning  .issue-tag { color: #92400e; }
+  .ic-info     .issue-tag { color: #1e40af; }
+  .ic-neutral  .issue-tag { color: #475569; }
+  .issue-name  { font-size: 13px; font-weight: 700; color: #1e2235; margin-bottom: 4px; }
+  .issue-count { font-size: 26px; font-weight: 800; line-height: 1.1; }
+  .ic-critical .issue-count { color: #ef4444; }
+  .ic-warning  .issue-count { color: #f59e0b; }
+  .ic-info     .issue-count { color: #3b82f6; }
+  .ic-neutral  .issue-count { color: #64748b; }
+  .issue-pct  { font-size: 12px; color: #64748b; margin-top: 3px; }
+  .issue-base { font-size: 10px; color: #94a3b8; margin-top: 2px; font-style: italic; }
+  .issue-desc { font-size: 11px; color: #94a3b8; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e8ecf4; line-height: 1.5; }
+
+  .score-rule { display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+  .score-rule:last-child { border-bottom: none; }
+  .sr-badge { min-width: 52px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 800; }
+  .sr-name  { font-size: 13px; font-weight: 700; color: #1e2235; margin-bottom: 3px; }
+  .sr-desc  { font-size: 11px; color: #64748b; line-height: 1.6; }
+
+  .example-box { border: 1px solid #e8ecf4; border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+  .example-head { background: #f8fafc; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e8ecf4; }
+  .example-head-left { font-size: 13px; font-weight: 700; color: #1e2235; }
+  .example-head-right { font-size: 11px; color: #64748b; }
+  .example-body { padding: 16px 18px; }
+  .phone-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid #f1f5f9; }
+  .phone-row:last-child { border-bottom: none; }
+  .pr-rank  { font-size: 11px; font-weight: 700; color: #94a3b8; width: 20px; flex-shrink: 0; }
+  .pr-phone { flex: 1.2; font-size: 12px; font-family: monospace; color: #1e2235; }
+  .pr-flags { display: flex; gap: 4px; flex-wrap: wrap; flex: 2; }
+  .pr-flag  { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+  .f-ccmatch  { background: #d1fae5; color: #065f46; }
+  .f-e164     { background: #dbeafe; color: #1e40af; }
+  .f-tollfree { background: #fee2e2; color: #991b1b; }
+  .f-mobile   { background: #fef3c7; color: #92400e; }
+  .f-landline { background: #f0fdf4; color: #166534; }
+  .f-nodup    { background: #faf5ff; color: #6b21a8; }
+  .f-local    { background: #fdf2f8; color: #be185d; }
+  .f-valid    { background: #ecfdf5; color: #065f46; }
+  .pr-calc  { font-size: 11px; color: #64748b; width: 100px; text-align: right; flex-shrink: 0; }
+  .pr-score { font-size: 14px; font-weight: 800; width: 36px; text-align: right; flex-shrink: 0; }
+  .pr-bar   { width: 70px; flex-shrink: 0; }
+  .pr-bar-track { background: #f1f5f9; border-radius: 3px; height: 5px; }
+  .pr-bar-fill  { height: 100%; border-radius: 3px; background: #0d9488; }
+  .pr-sel   { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+  .sel-yes  { background: #d1fae5; color: #065f46; }
+  .sel-no   { background: #fee2e2; color: #991b1b; opacity: 0.6; }
+
+  .dummy-banner { background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; padding: 10px 16px; font-size: 12px; color: #92400e; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .delta-up   { color: #10b981; font-weight: 700; }
+  .delta-down { color: #ef4444; font-weight: 700; }
+
+  .info-row { display: flex; gap: 8px; align-items: flex-start; padding: 10px 14px; background: #f0fdfa; border-radius: 8px; border: 1px solid #99f6e4; margin-bottom: 14px; }
+  .info-text { font-size: 12px; color: #0f766e; line-height: 1.5; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .text-muted { color: #94a3b8; font-size: 11px; }
+  .divider { height: 1px; background: #e8ecf4; margin: 20px 0; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <h1>Phone Data Quality Dashboard</h1>
+    <p>Firmable · 13 Markets · Snowflake + QuickSight · Refreshes every Friday after release</p>
+  </div>
+  <div class="header-right">
+    <div class="run-info"><strong>Last Run</strong>16 Jun 2026, 6:00 PM IST</div>
+    <div class="live-badge"><span class="live-dot"></span> LIVE</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('overview',this)">Overview</div>
+  <div class="tab"        onclick="showTab('issues',this)">Issues Analysis</div>
+  <div class="tab"        onclick="showTab('scoring',this)">Phone Scoring Logic</div>
+  <div class="tab"        onclick="showTab('trends',this)">Quality Trends</div>
+</div>
+
+<!-- ═══════════════ OVERVIEW ═══════════════ -->
+<div class="page active" id="overview">
+
+  <div class="section-title">Company Universe — 13 Markets</div>
+  <div class="g4 mb16">
+
+    <div class="stat">
+      <div class="stat-accent" style="background:linear-gradient(90deg,#0d9488,#14b8a6)"></div>
+      <div class="stat-label">Distinct Companies (Global)</div>
+      <div class="stat-value" style="color:#0d9488">15.2M</div>
+      <div class="stat-detail">Unique companies by <strong>FIRMABLE_ID</strong> — deduplicated globally. One company appearing in 3 markets counts as 1 here.</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-accent" style="background:linear-gradient(90deg,#14b8a6,#2dd4bf)"></div>
+      <div class="stat-label">Company–Country Records (13 Markets)</div>
+      <div class="stat-value" style="color:#14b8a6">16.9M</div>
+      <div class="stat-detail">Total rows in <strong>GLD_COMPANY_DOWNLOAD</strong> filtered to 13 markets. One company in 3 markets = 3 records. All phone metrics are based on this number.</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-accent" style="background:linear-gradient(90deg,#10b981,#34d399)"></div>
+      <div class="stat-label">Records WITH Phone</div>
+      <div class="stat-value" style="color:#10b981">4.38M</div>
+      <div class="stat-detail">Records that have at least one value in <strong>PRIMARY_PHONE</strong> or <strong>OTHER_PHONES</strong>.</div>
+      <div class="stat-note up">26.0% of 16.9M records</div>
+    </div>
+
+    <div class="stat">
+      <div class="stat-accent" style="background:linear-gradient(90deg,#ef4444,#f87171)"></div>
+      <div class="stat-label">Records WITHOUT Phone</div>
+      <div class="stat-value" style="color:#ef4444">12.5M</div>
+      <div class="stat-detail">Records with no phone in primary or other fields — the primary coverage gap.</div>
+      <div class="stat-note down">74.0% of 16.9M records</div>
+    </div>
+  </div>
+
+  <!-- Note on record count vs email -->
+  <div style="background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;padding:10px 16px;margin-bottom:20px;font-size:12px;color:#0f766e;line-height:1.6">
+    <strong>Note on record counts:</strong> The email dashboard references 168.8M rows because email analysis counts at the <em>per-email-address level</em> (a company with 5 emails = 5 rows). Phone analysis counts at the <em>per-company-country record level</em> — 16.9M rows. Both use the same source table: <strong>FIRMOGRAPHICS.ZEUS_GOLD.GLD_COMPANY_DOWNLOAD</strong> filtered to 13 markets.
+  </div>
+
+  <!-- Metric definitions -->
+  <div class="section-title">Quality Metrics — Definitions &amp; How They Are Calculated</div>
+  <div class="g3 mb16">
+    <div class="metric-def">
+      <div class="metric-def-title" style="color:#0d9488">
+        <span style="font-size:18px">📊</span> Coverage
+      </div>
+      <div class="metric-def-formula">Coverage % = (Records with Phone / Total Records) × 100</div>
+      <div class="metric-def-desc">
+        Measures how many company–country records have at least one phone — either in <em>PRIMARY_PHONE</em> or <em>OTHER_PHONES</em>. A record counts as covered even if the phone lacks a country code or is a toll-free number. Coverage only measures <strong>presence</strong>, not quality.
+      </div>
+      <div style="margin-top:10px;font-size:12px;font-weight:700;color:#0d9488">Current: 26.0% &nbsp;·&nbsp; Target: 60%</div>
+    </div>
+
+    <div class="metric-def">
+      <div class="metric-def-title" style="color:#f97316">
+        <span style="font-size:18px">🎯</span> Accuracy
+      </div>
+      <div class="metric-def-formula">Accuracy % = weighted composite score per record, averaged across all records with phone</div>
+      <div class="metric-def-desc">
+        Accuracy is a <strong>weighted composite of 5 signals</strong> per phone record:<br><br>
+        <span style="display:inline-block;background:#fff7ed;color:#c2410c;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;margin-bottom:4px">35%</span> Country code matches region (e.g. +61 for AU)<br>
+        <span style="display:inline-block;background:#fef3c7;color:#92400e;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;margin-bottom:4px">25%</span> Not a toll-free / premium number (800/888/900)<br>
+        <span style="display:inline-block;background:#ede9fe;color:#5b21b6;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;margin-bottom:4px">20%</span> Not a cross-company duplicate<br>
+        <span style="display:inline-block;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;margin-bottom:4px">15%</span> Valid E.164 or recognised local format<br>
+        <span style="display:inline-block;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;margin-bottom:4px">5%</span> Correct digit count for country<br><br>
+        Each record scores 0–100 on these signals combined. Country Accuracy = average across all records with phone in that country.
+      </div>
+      <div style="margin-top:10px;font-size:12px;font-weight:700;color:#f97316">Current: 58.0% &nbsp;·&nbsp; Target: 80%</div>
+    </div>
+
+    <div class="metric-def">
+      <div class="metric-def-title" style="color:#10b981">
+        <span style="font-size:18px">✅</span> Consistency
+      </div>
+      <div class="metric-def-formula">Consistency % = (Valid-format, Non-premium Phones / Records with Phone) × 100</div>
+      <div class="metric-def-desc">
+        Measures whether phones are structurally dialable. A phone is consistent if it: (1) passes format validation — has a recognisable structure with correct digit count for its country — and (2) is not a premium or toll-free line (800/888/900 series). Mobile vs landline and missing country code are <strong>not</strong> penalised here — they are flagged separately as signals.
+      </div>
+      <div style="margin-top:10px;font-size:12px;font-weight:700;color:#10b981">Current: 63.0% &nbsp;·&nbsp; Target: 75%</div>
+    </div>
+  </div>
+
+  <!-- Quality Score + 3 KPIs -->
+  <div class="section-title">Quality Score</div>
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:16px;margin-bottom:16px">
+    <div class="q-score-card">
+      <div class="stat-label" style="color:#64748b">Overall Quality Score</div>
+      <div style="font-size:56px;font-weight:800;color:#0d9488;line-height:1">46<span style="font-size:24px;color:#94a3b8">/100</span></div>
+      <div style="font-size:11px;color:#64748b;margin-top:6px">Coverage 40% · Accuracy 40% · Consistency 20%</div>
+      <div class="q-dims">
+        <div class="q-dim"><div class="q-dim-label">Coverage</div><div class="q-dim-bar"><div class="q-dim-fill" style="width:26%;background:#0d9488"></div></div><div class="q-dim-val">26%</div></div>
+        <div class="q-dim"><div class="q-dim-label">Accuracy</div><div class="q-dim-bar"><div class="q-dim-fill" style="width:58%;background:#f97316"></div></div><div class="q-dim-val">58%</div></div>
+        <div class="q-dim"><div class="q-dim-label">Consistency</div><div class="q-dim-bar"><div class="q-dim-fill" style="width:63%;background:#10b981"></div></div><div class="q-dim-val">63%</div></div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+      <div class="stat">
+        <div class="stat-accent" style="background:linear-gradient(90deg,#0d9488,#14b8a6)"></div>
+        <div class="stat-label">Coverage</div>
+        <div class="stat-value" style="color:#0d9488">26.0%</div>
+        <div class="stat-detail">4.38M of 16.9M records have a phone</div>
+        <div class="stat-note up" style="margin-top:8px">↑ +0.8% from last week</div>
+        <div style="margin-top:6px;font-size:11px;color:#94a3b8">Target: 60%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-accent" style="background:linear-gradient(90deg,#f97316,#fb923c)"></div>
+        <div class="stat-label">Accuracy</div>
+        <div class="stat-value" style="color:#f97316">58.0%</div>
+        <div class="stat-detail">Weighted composite: country code match (35%) + not toll-free (25%) + not duplicate (20%) + valid format (15%) + correct digit count (5%)</div>
+        <div class="stat-note down" style="margin-top:8px">↓ −0.3% from last week</div>
+        <div style="margin-top:6px;font-size:11px;color:#94a3b8">Target: 80%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-accent" style="background:linear-gradient(90deg,#10b981,#34d399)"></div>
+        <div class="stat-label">Consistency</div>
+        <div class="stat-value" style="color:#10b981">63.0%</div>
+        <div class="stat-detail">Valid format + not a toll-free/premium number</div>
+        <div class="stat-note up" style="margin-top:8px">↑ +0.5% from last week</div>
+        <div style="margin-top:6px;font-size:11px;color:#94a3b8">Target: 75%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Country summary -->
+  <div class="section-title">Country Summary</div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-head">Coverage % by Country</div>
+      <div class="card-sub">% of company–country records (ID-level) with at least one phone · Sorted high to low · Target: 60%</div>
+      <div class="bar-row"><div class="bar-country">JP</div><div class="bar-track"><div class="bar-fill" style="width:57.9%;background:#10b981"><span>57.9%</span></div></div><div class="bar-val">57.9%</div></div>
+      <div class="bar-row"><div class="bar-country">TH</div><div class="bar-track"><div class="bar-fill" style="width:56.4%;background:#10b981"><span>56.4%</span></div></div><div class="bar-val">56.4%</div></div>
+      <div class="bar-row"><div class="bar-country">AU</div><div class="bar-track"><div class="bar-fill" style="width:55.4%;background:#10b981"><span>55.4%</span></div></div><div class="bar-val">55.4%</div></div>
+      <div class="bar-row"><div class="bar-country">NZ</div><div class="bar-track"><div class="bar-fill" style="width:53.9%;background:#0d9488"><span>53.9%</span></div></div><div class="bar-val">53.9%</div></div>
+      <div class="bar-row"><div class="bar-country">MY</div><div class="bar-track"><div class="bar-fill" style="width:39.8%;background:#f59e0b"><span>39.8%</span></div></div><div class="bar-val">39.8%</div></div>
+      <div class="bar-row"><div class="bar-country">KR</div><div class="bar-track"><div class="bar-fill" style="width:28.0%;background:#ef4444"><span>28.0%</span></div></div><div class="bar-val">28.0%</div></div>
+      <div class="bar-row"><div class="bar-country">ID</div><div class="bar-track"><div class="bar-fill" style="width:21.8%;background:#ef4444"><span>21.8%</span></div></div><div class="bar-val">21.8%</div></div>
+      <div class="bar-row"><div class="bar-country">SG</div><div class="bar-track"><div class="bar-fill" style="width:21.5%;background:#ef4444"><span>21.5%</span></div></div><div class="bar-val">21.5%</div></div>
+      <div class="bar-row"><div class="bar-country">HK</div><div class="bar-track"><div class="bar-fill" style="width:20.1%;background:#ef4444"><span>20.1%</span></div></div><div class="bar-val">20.1%</div></div>
+      <div class="bar-row"><div class="bar-country">VN</div><div class="bar-track"><div class="bar-fill" style="width:19.1%;background:#ef4444"><span>19.1%</span></div></div><div class="bar-val">19.1%</div></div>
+      <div class="bar-row"><div class="bar-country">US</div><div class="bar-track"><div class="bar-fill" style="width:17.9%;background:#ef4444"><span>17.9%</span></div></div><div class="bar-val">17.9%</div></div>
+      <div class="bar-row"><div class="bar-country">PH</div><div class="bar-track"><div class="bar-fill" style="width:8.9%;background:#ef4444"><span>8.9%</span></div></div><div class="bar-val">8.9%</div></div>
+      <div class="bar-row"><div class="bar-country">CA</div><div class="bar-track"><div class="bar-fill" style="width:8.2%;background:#ef4444"><span>8.2%</span></div></div><div class="bar-val">8.2%</div></div>
+      <div style="margin-top:12px;font-size:11px;color:#94a3b8">🟢 ≥55% (near target) &nbsp;🟡 30–55% &nbsp;🔴 &lt;30% (critical)</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Country Metrics — Coverage · Accuracy · Consistency</div>
+      <div class="card-sub">Base: 16.9M company–country records across 13 markets · Status: 🟢 On target &nbsp;🟡 Below target &nbsp;🔴 Critical</div>
+      <table>
+        <thead><tr>
+          <th>Country</th>
+          <th class="num">Records</th>
+          <th class="num">With Phone</th>
+          <th class="num">Without Phone</th>
+          <th class="num">Coverage</th>
+          <th class="num">Accuracy</th>
+          <th class="num">Consistency</th>
+          <th class="num">Score</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>JP</b></td><td class="num">1.40M</td><td class="num">813K</td><td class="num">589K</td>
+            <td class="num"><span class="ms g"><span class="ms-dot"></span>57.9%</span></td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>44.0%</span></td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>52.0%</span></td>
+            <td class="num"><b>51</b></td></tr>
+          <tr><td><b>TH</b></td><td class="num">128K</td><td class="num">72K</td><td class="num">56K</td>
+            <td class="num"><span class="ms g"><span class="ms-dot"></span>56.4%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>61.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>66.0%</span></td>
+            <td class="num"><b>60</b></td></tr>
+          <tr><td><b>AU</b></td><td class="num">1.79M</td><td class="num">993K</td><td class="num">799K</td>
+            <td class="num"><span class="ms g"><span class="ms-dot"></span>55.4%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>62.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>68.0%</span></td>
+            <td class="num"><b>61</b></td></tr>
+          <tr><td><b>NZ</b></td><td class="num">320K</td><td class="num">172K</td><td class="num">148K</td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>53.9%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>64.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>70.0%</span></td>
+            <td class="num"><b>61</b></td></tr>
+          <tr><td><b>MY</b></td><td class="num">240K</td><td class="num">95K</td><td class="num">145K</td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>39.8%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>58.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>62.0%</span></td>
+            <td class="num"><b>52</b></td></tr>
+          <tr><td><b>KR</b></td><td class="num">144K</td><td class="num">40K</td><td class="num">104K</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>28.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>52.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>57.0%</span></td>
+            <td class="num"><b>43</b></td></tr>
+          <tr><td><b>ID</b></td><td class="num">430K</td><td class="num">94K</td><td class="num">336K</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>21.8%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>56.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>60.0%</span></td>
+            <td class="num"><b>43</b></td></tr>
+          <tr><td><b>SG</b></td><td class="num">317K</td><td class="num">68K</td><td class="num">249K</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>21.5%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>63.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>68.0%</span></td>
+            <td class="num"><b>47</b></td></tr>
+          <tr><td><b>HK</b></td><td class="num">198K</td><td class="num">40K</td><td class="num">158K</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>20.1%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>59.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>64.0%</span></td>
+            <td class="num"><b>44</b></td></tr>
+          <tr><td><b>VN</b></td><td class="num">75K</td><td class="num">14K</td><td class="num">61K</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>19.1%</span></td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>52.0%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>57.0%</span></td>
+            <td class="num"><b>40</b></td></tr>
+          <tr><td><b>US</b></td><td class="num">10.3M</td><td class="num">1.85M</td><td class="num">8.47M</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>17.9%</span></td>
+            <td class="num"><span class="ms y"><span class="ms-dot"></span>72.0%</span></td>
+            <td class="num"><span class="ms g"><span class="ms-dot"></span>75.0%</span></td>
+            <td class="num"><b>51</b></td></tr>
+          <tr><td><b>PH</b></td><td class="num">237K</td><td class="num">21K</td><td class="num">216K</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>8.9%</span></td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>48.0%</span></td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>53.0%</span></td>
+            <td class="num"><b>33</b></td></tr>
+          <tr><td><b>CA</b></td><td class="num">1.29M</td><td class="num">105K</td><td class="num">1.18M</td>
+            <td class="num"><span class="ms r"><span class="ms-dot"></span>8.2%</span></td>
+            <td class="num"><span class="ms g"><span class="ms-dot"></span>70.0%</span></td>
+            <td class="num"><span class="ms g"><span class="ms-dot"></span>73.0%</span></td>
+            <td class="num"><b>46</b></td></tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px;display:flex;gap:16px;font-size:11px">
+        <span><span class="ms g" style="padding:2px 8px"><span class="ms-dot"></span>On target</span></span>
+        <span><span class="ms y" style="padding:2px 8px"><span class="ms-dot"></span>Below target</span></span>
+        <span><span class="ms r" style="padding:2px 8px"><span class="ms-dot"></span>Critical</span></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ ISSUES ═══════════════ -->
+<div class="page" id="issues">
+
+  <div class="info-row">
+    <span style="color:#0d9488;font-size:14px">ℹ</span>
+    <span class="info-text">
+      All issue counts are calculated on the <strong>16.9M company–country records (ID-level)</strong>.
+      "Missing Phone" is measured against all 16.9M. All other issues are measured against the <strong>4.38M records that have a phone</strong>.
+      No live carrier or reachability checks have been run on any phones — tracked as a separate issue below.
+    </span>
+  </div>
+
+  <div class="section-title">Critical Issues — Direct Impact on Data Quality</div>
+  <div class="issue-grid">
+    <div class="issue-card ic-critical">
+      <div class="issue-tag">Critical · Coverage</div>
+      <div class="issue-name">Missing Phone</div>
+      <div class="issue-count">12.5M</div>
+      <div class="issue-pct">74.0% have no phone at all</div>
+      <div class="issue-base">Base: 16.9M total records</div>
+      <div class="issue-desc">Record has no value in PRIMARY_PHONE and no value in OTHER_PHONES. Nearly three-quarters of all company records across 13 markets have no phone data. US alone accounts for 8.47M missing phones.</div>
+      <div style="margin-top:10px;padding:8px 10px;background:#fef2f2;border-radius:6px;font-size:11px;color:#b91c1c;border-left:3px solid #ef4444">
+        <strong>Fix impact:</strong> Every 1M records that gain a phone → <strong>Coverage ↑ ~5.9%</strong> → Overall Quality Score ↑ ~2.4 pts (Coverage weighted at 40%)
+      </div>
+    </div>
+    <div class="issue-card ic-critical">
+      <div class="issue-tag">Critical · Accuracy</div>
+      <div class="issue-name">No Country Code (Local Format Only)</div>
+      <div class="issue-count">1.92M</div>
+      <div class="issue-pct">43.8% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">Phone is stored in a local format without an international dialling prefix — e.g. <em>(08) 8941 9105</em> instead of <em>+61 8 8941 9105</em>. JP alone has 83% of its phones in local format. These cannot be validated for country match or used for international outreach.</div>
+      <div style="margin-top:10px;padding:8px 10px;background:#fef2f2;border-radius:6px;font-size:11px;color:#b91c1c;border-left:3px solid #ef4444">
+        <strong>Fix impact:</strong> Normalising to E.164 unlocks country code validation — the largest Accuracy signal at 35% weight. Fixing all 1.92M → Accuracy ↑ up to <strong>~15 pts</strong>.
+      </div>
+    </div>
+    <div class="issue-card ic-critical">
+      <div class="issue-tag">Critical · Accuracy</div>
+      <div class="issue-name">Country Code Mismatch</div>
+      <div class="issue-count">247K</div>
+      <div class="issue-pct">5.6% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">Phone has an E.164 prefix but the country code does not match the company's REGION_CODE — e.g. an AU company record with a phone starting <em>+1</em> (US/CA code). Indicates the phone was sourced from a different market or incorrectly attributed.</div>
+      <div style="margin-top:10px;padding:8px 10px;background:#fef2f2;border-radius:6px;font-size:11px;color:#b91c1c;border-left:3px solid #ef4444">
+        <strong>Fix impact:</strong> Correcting mismatches improves <strong>Accuracy</strong> — country code match carries 35% weight. Resolving all 247K → Accuracy ↑ ~5.6 pts.
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Warning Issues — Reduce Usability</div>
+  <div class="issue-grid">
+    <div class="issue-card ic-warning">
+      <div class="issue-tag">Warning · Reachability</div>
+      <div class="issue-name">No Carrier / Live Reachability Check</div>
+      <div class="issue-count">4.38M</div>
+      <div class="issue-pct">100% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">None of the phones have been run through a carrier lookup or live reachability check (e.g. Twilio Lookup, NumVerify). We cannot confirm whether any number is currently active, disconnected, or a virtual number. Highest operational gap after coverage.</div>
+      <div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border-radius:6px;font-size:11px;color:#92400e;border-left:3px solid #f59e0b">
+        <strong>Fix impact:</strong> Once carrier checks run, a new <strong>Reachability</strong> dimension can be added to the quality score. Currently a blind spot — we do not know what % of our 4.38M phones are live.
+      </div>
+    </div>
+    <div class="issue-card ic-warning">
+      <div class="issue-tag">Warning · Accuracy</div>
+      <div class="issue-name">Toll-Free / Premium Number</div>
+      <div class="issue-count">502K</div>
+      <div class="issue-pct">11.4% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">PRIMARY_PHONE uses a toll-free (800, 888, 877, 866, 855) or premium (900) prefix. US has 13.5% toll-free rate, CA has 18.5%. These are shared service lines — not direct company contacts. May be outsourced to a call centre unrelated to the company.</div>
+      <div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border-radius:6px;font-size:11px;color:#92400e;border-left:3px solid #f59e0b">
+        <strong>Fix impact:</strong> Replacing toll-free with direct lines improves <strong>Accuracy</strong> — "not toll-free" carries 25% weight. Fixing all 502K → Accuracy ↑ ~2.9 pts.
+      </div>
+    </div>
+    <div class="issue-card ic-warning">
+      <div class="issue-tag">Warning · Accuracy</div>
+      <div class="issue-name">Duplicate Phone Across Companies</div>
+      <div class="issue-count">298K</div>
+      <div class="issue-pct">6.8% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">The same PRIMARY_PHONE number appears on more than one distinct company (different FIRMABLE_ID). Indicates a data ingestion error — a shared number (e.g. franchise line or call centre) was incorrectly mapped to multiple company entities.</div>
+      <div style="margin-top:10px;padding:8px 10px;background:#fffbeb;border-radius:6px;font-size:11px;color:#92400e;border-left:3px solid #f59e0b">
+        <strong>Fix impact:</strong> Deduplicating cross-company phones improves <strong>Accuracy</strong> — "not duplicate" carries 20% weight. Fixing all 298K → Accuracy ↑ ~1.4 pts.
+      </div>
+    </div>
+  </div>
+
+  <div class="section-title">Signals — Informational, Not Defects</div>
+  <div class="issue-grid">
+    <div class="issue-card ic-info">
+      <div class="issue-tag">Signal · Format</div>
+      <div class="issue-name">Invalid / Malformed Format</div>
+      <div class="issue-count">81K</div>
+      <div class="issue-pct">1.8% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">Phone string fails all format checks — too short, too long, contains non-numeric characters, or is a placeholder string (e.g. "N/A", "—", "000000"). These cannot be dialled and should be nullified.</div>
+      <div style="margin-top:10px;padding:8px 10px;background:#eff6ff;border-radius:6px;font-size:11px;color:#1e40af;border-left:3px solid #3b82f6">
+        <strong>Fix impact:</strong> Removing malformed entries improves <strong>Consistency</strong> and <strong>Accuracy</strong> (valid format carries 15% weight). Fixing all 81K → Accuracy ↑ ~0.3 pt.
+      </div>
+    </div>
+    <div class="issue-card ic-info">
+      <div class="issue-tag">Signal · Type</div>
+      <div class="issue-name">Mobile Number (B2B Context)</div>
+      <div class="issue-count">650K</div>
+      <div class="issue-pct">14.8% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">Phone is identified as a mobile/cell number based on its prefix (e.g. +61 4xx for AU, +64 2x for NZ). Mobile phones are <strong>valid and preferred</strong> for small and micro companies. Flagged here for data composition visibility — not a defect.</div>
+    </div>
+    <div class="issue-card ic-neutral">
+      <div class="issue-tag">Signal · Type</div>
+      <div class="issue-name">Landline Confirmed</div>
+      <div class="issue-count">3.73M</div>
+      <div class="issue-pct">85.2% of records with phone</div>
+      <div class="issue-base">Base: 4.38M records with phone</div>
+      <div class="issue-desc">Phone is a fixed-line number with a recognised area code or geographic prefix. The most common and preferred type for company-level data. No action needed — this is the best-case phone type for B2B outreach.</div>
+    </div>
+  </div>
+
+  <!-- Heatmap -->
+  <div class="section-title">Issue Heat Map by Country</div>
+  <div class="card">
+    <div class="card-head flex-between">
+      Issue Distribution — All 13 Markets
+      <span class="text-muted">% of records in each country affected by each issue</span>
+    </div>
+    <div style="overflow-x:auto;margin-top:14px">
+      <table class="hmap">
+        <thead><tr>
+          <th>Country</th>
+          <th>Missing<br>Phone</th>
+          <th>No Country<br>Code</th>
+          <th>CC<br>Mismatch</th>
+          <th>No Carrier<br>Check</th>
+          <th>Toll-Free /<br>Premium</th>
+          <th>Cross-Co<br>Duplicate</th>
+          <th>Invalid<br>Format</th>
+          <th>Mobile<br>(signal)</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>JP</b></td><td class="h2">42.1%</td><td class="h4">83.0%</td><td class="h0">2.1%</td><td class="h4">100%</td><td class="h0">4.2%</td><td class="h0">2.4%</td><td class="h0">0.8%</td><td class="h0">3.1%</td></tr>
+          <tr><td><b>TH</b></td><td class="h2">43.6%</td><td class="h2">25.0%</td><td class="h0">3.8%</td><td class="h4">100%</td><td class="h0">3.9%</td><td class="h1">5.1%</td><td class="h0">1.2%</td><td class="h1">19.4%</td></tr>
+          <tr><td><b>AU</b></td><td class="h2">44.6%</td><td class="h2">43.1%</td><td class="h0">2.8%</td><td class="h4">100%</td><td class="h0">5.8%</td><td class="h0">3.2%</td><td class="h0">1.1%</td><td class="h1">14.2%</td></tr>
+          <tr><td><b>NZ</b></td><td class="h2">46.1%</td><td class="h2">45.4%</td><td class="h0">3.1%</td><td class="h4">100%</td><td class="h0">8.3%</td><td class="h0">3.6%</td><td class="h0">1.3%</td><td class="h1">16.8%</td></tr>
+          <tr><td><b>MY</b></td><td class="h2">60.2%</td><td class="h1">31.6%</td><td class="h0">4.8%</td><td class="h4">100%</td><td class="h0">4.8%</td><td class="h1">6.2%</td><td class="h0">1.6%</td><td class="h2">22.4%</td></tr>
+          <tr><td><b>KR</b></td><td class="h3">72.0%</td><td class="h2">60.5%</td><td class="h0">3.4%</td><td class="h4">100%</td><td class="h0">5.5%</td><td class="h1">5.8%</td><td class="h0">1.9%</td><td class="h1">13.1%</td></tr>
+          <tr><td><b>ID</b></td><td class="h3">78.2%</td><td class="h1">25.1%</td><td class="h1">6.3%</td><td class="h4">100%</td><td class="h1">9.2%</td><td class="h1">7.4%</td><td class="h1">2.4%</td><td class="h2">28.6%</td></tr>
+          <tr><td><b>SG</b></td><td class="h3">78.5%</td><td class="h0">13.9%</td><td class="h1">7.1%</td><td class="h4">100%</td><td class="h0">7.6%</td><td class="h1">5.3%</td><td class="h0">1.4%</td><td class="h2">21.3%</td></tr>
+          <tr><td><b>HK</b></td><td class="h3">79.9%</td><td class="h2">46.5%</td><td class="h1">8.2%</td><td class="h4">100%</td><td class="h0">4.9%</td><td class="h1">6.1%</td><td class="h1">2.1%</td><td class="h1">18.7%</td></tr>
+          <tr><td><b>VN</b></td><td class="h3">80.9%</td><td class="h0">1.1%</td><td class="h1">7.8%</td><td class="h4">100%</td><td class="h0">7.8%</td><td class="h1">8.8%</td><td class="h1">2.8%</td><td class="h2">24.9%</td></tr>
+          <tr><td><b>US</b></td><td class="h3">82.1%</td><td class="h0">8.6%</td><td class="h0">1.4%</td><td class="h4">100%</td><td class="h2">13.5%</td><td class="h0">3.1%</td><td class="h0">0.9%</td><td class="h0">9.8%</td></tr>
+          <tr><td><b>PH</b></td><td class="h4">91.1%</td><td class="h0">16.0%</td><td class="h1">9.4%</td><td class="h4">100%</td><td class="h0">5.4%</td><td class="h2">10.2%</td><td class="h1">3.2%</td><td class="h2">31.4%</td></tr>
+          <tr><td><b>CA</b></td><td class="h4">91.8%</td><td class="h0">13.7%</td><td class="h0">1.1%</td><td class="h4">100%</td><td class="h2">18.5%</td><td class="h0">2.8%</td><td class="h0">0.8%</td><td class="h0">8.3%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:16px;flex-wrap:wrap">
+      <span style="font-size:11px;font-weight:600;color:#64748b">Severity scale:</span>
+      <span class="h0" style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700">&lt;5% — Low</span>
+      <span class="h1" style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700">5–20% — Moderate</span>
+      <span class="h2" style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700">20–40% — High</span>
+      <span class="h3" style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700">40–70% — Severe</span>
+      <span class="h4" style="padding:3px 10px;border-radius:4px;font-size:11px;font-weight:700">&gt;70% — Critical</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PHONE SCORING LOGIC ═══════════════ -->
+<div class="page" id="scoring">
+
+  <div class="info-row">
+    <span style="color:#0d9488;font-size:14px">ℹ</span>
+    <span class="info-text">
+      Each phone number is scored <strong>0–9 points</strong> based on 5 quality signals. The <strong>best-scoring phone</strong> from PRIMARY_PHONE and OTHER_PHONES is selected as the canonical contact number. If scores are tied, PRIMARY_PHONE wins.
+    </span>
+  </div>
+
+  <div class="g2">
+    <div class="card">
+      <div class="card-head">Scoring Rules — 0–9 Points</div>
+      <div class="card-sub">Applied to every phone number independently · Higher = better quality</div>
+
+      <div class="score-rule">
+        <div class="sr-badge" style="background:#d1fae5;color:#065f46">+3</div>
+        <div>
+          <div class="sr-name">Country code matches company region</div>
+          <div class="sr-desc">Phone has an E.164 prefix (+XX) and the country code correctly matches the company's REGION_CODE. E.g. +61 for AU, +1 for US/CA, +81 for JP, +65 for SG. The single strongest signal that the number actually belongs to this company.</div>
+        </div>
+      </div>
+      <div class="score-rule">
+        <div class="sr-badge" style="background:#fff7ed;color:#c2410c">+2</div>
+        <div>
+          <div class="sr-name">Not a toll-free or premium number</div>
+          <div class="sr-desc">Phone does not start with a toll-free prefix (800, 888, 877, 866, 855, 844) or premium (900). Toll-free lines are shared service numbers — they rarely identify a specific company's direct contact.</div>
+        </div>
+      </div>
+      <div class="score-rule">
+        <div class="sr-badge" style="background:#faf5ff;color:#6b21a8">+2</div>
+        <div>
+          <div class="sr-name">Not a cross-company duplicate</div>
+          <div class="sr-desc">The normalised phone number does not appear in more than one distinct company's PRIMARY_PHONE field. A number shared across multiple FIRMABLE_IDs suggests a data ingestion error or a shared call centre line.</div>
+        </div>
+      </div>
+      <div class="score-rule">
+        <div class="sr-badge" style="background:#dbeafe;color:#1e40af">+1</div>
+        <div>
+          <div class="sr-name">Valid E.164 or recognised local format</div>
+          <div class="sr-desc">Phone passes structural format validation — either it uses a correct E.164 prefix (+XX followed by digits) or it matches a recognised local format for its country (e.g. 0X XXXX XXXX for AU, (0X) XXXX XXXX for JP). Pure strings of ambiguous length score 0 here.</div>
+        </div>
+      </div>
+      <div class="score-rule">
+        <div class="sr-badge" style="background:#d1fae5;color:#065f46">+1</div>
+        <div>
+          <div class="sr-name">Correct digit count for country</div>
+          <div class="sr-desc">After stripping formatting, the digit count falls within the expected range for the country (e.g. 10 digits for US/CA, 9–10 for AU, 10–11 for JP). Numbers with too few or too many digits score 0 here.</div>
+        </div>
+      </div>
+      <div class="score-rule">
+        <div class="sr-badge" style="background:#fef3c7;color:#92400e">+1</div>
+        <div>
+          <div class="sr-name">Mobile bonus for micro companies (≤10 emp)</div>
+          <div class="sr-desc">If the company has ≤10 employees globally and the phone is a mobile number, it receives a +1 bonus. Micro businesses frequently operate via mobile — this is the most realistic primary contact for this segment.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;background:#f8fafc;border-radius:8px;padding:12px 16px;font-size:11px;color:#64748b;line-height:1.7">
+        <strong style="color:#1e2235">Max score: 9</strong> (mobile + micro bonus) · <strong style="color:#1e2235">8</strong> (landline, perfect)<br>
+        <strong style="color:#1e2235">7–9:</strong> High quality · <strong style="color:#1e2235">4–6:</strong> Medium quality · <strong style="color:#1e2235">0–3:</strong> Low quality
+      </div>
+    </div>
+
+    <div>
+      <div class="card mb16">
+        <div class="card-head">Company Size Bands</div>
+        <div class="card-sub">Used for mobile bonus rule · Based on GLOBAL_EMP_COUNT</div>
+        <table>
+          <thead><tr><th>Band</th><th>Emp Count</th><th>Mobile Phone</th><th>Toll-Free Penalty</th></tr></thead>
+          <tbody>
+            <tr><td><span class="pill gy">Micro</span></td><td>≤ 10</td><td><span class="pill g">+1 Bonus</span></td><td>Applies (reduced impact)</td></tr>
+            <tr><td><span class="pill b">SMB</span></td><td>11–50</td><td>Neutral (0)</td><td>Full penalty</td></tr>
+            <tr><td><span class="pill y">Mid</span></td><td>51–200</td><td>Neutral (0)</td><td>Full penalty</td></tr>
+            <tr><td><span class="pill r">Enterprise</span></td><td>200+</td><td>Neutral (0)</td><td>Full penalty</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-head">Country Code Reference</div>
+        <div class="card-sub">E.164 prefix expected per REGION_CODE</div>
+        <table>
+          <thead><tr><th>Country</th><th>Region</th><th>Prefix</th><th>Expected Digits</th></tr></thead>
+          <tbody>
+            <tr><td>Australia</td><td>AU</td><td>+61</td><td>9–10</td></tr>
+            <tr><td>New Zealand</td><td>NZ</td><td>+64</td><td>8–10</td></tr>
+            <tr><td>Singapore</td><td>SG</td><td>+65</td><td>8</td></tr>
+            <tr><td>Hong Kong</td><td>HK</td><td>+852</td><td>8</td></tr>
+            <tr><td>Malaysia</td><td>MY</td><td>+60</td><td>9–10</td></tr>
+            <tr><td>Japan</td><td>JP</td><td>+81</td><td>10–11</td></tr>
+            <tr><td>Indonesia</td><td>ID</td><td>+62</td><td>9–12</td></tr>
+            <tr><td>Philippines</td><td>PH</td><td>+63</td><td>10</td></tr>
+            <tr><td>USA</td><td>US</td><td>+1</td><td>10</td></tr>
+            <tr><td>Canada</td><td>CA</td><td>+1</td><td>10</td></tr>
+            <tr><td>Thailand</td><td>TH</td><td>+66</td><td>9–10</td></tr>
+            <tr><td>Vietnam</td><td>VN</td><td>+84</td><td>9–10</td></tr>
+            <tr><td>South Korea</td><td>KR</td><td>+82</td><td>9–11</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Worked examples -->
+  <div class="section-title">Worked Examples — How Phones Are Scored &amp; Selected</div>
+
+  <div class="example-box">
+    <div class="example-head">
+      <div class="example-head-left">Scenario 1 — Perfect E.164, country-confirmed, landline (AU)</div>
+      <div class="example-head-right">acme.com.au · AU · 45 employees</div>
+    </div>
+    <div class="example-body">
+      <div class="phone-row">
+        <div class="pr-rank">#1</div>
+        <div class="pr-phone">+61 2 9374 4200</div>
+        <div class="pr-flags">
+          <span class="pr-flag f-ccmatch">+61 ✓ AU</span>
+          <span class="pr-flag f-e164">E.164</span>
+          <span class="pr-flag f-nodup">Unique</span>
+          <span class="pr-flag f-landline">Landline</span>
+          <span class="pr-flag f-valid">Valid digits</span>
+        </div>
+        <div class="pr-calc">+3+2+2+1+1</div>
+        <div class="pr-score" style="color:#10b981">9</div>
+        <div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:100%"></div></div></div>
+        <div class="pr-sel sel-yes">SELECTED</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="example-box">
+    <div class="example-head">
+      <div class="example-head-left">Scenario 2 — Local format, no country code (AU)</div>
+      <div class="example-head-right">buildright.com.au · AU · 12 employees</div>
+    </div>
+    <div class="example-body">
+      <div class="phone-row">
+        <div class="pr-rank">#1</div>
+        <div class="pr-phone">(03) 9641 8800</div>
+        <div class="pr-flags">
+          <span class="pr-flag f-local">No CC</span>
+          <span class="pr-flag f-nodup">Unique</span>
+          <span class="pr-flag f-landline">Local landline</span>
+          <span class="pr-flag f-valid">Valid digits</span>
+        </div>
+        <div class="pr-calc">0+2+2+0+1</div>
+        <div class="pr-score" style="color:#f59e0b">5</div>
+        <div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:55%;background:#f59e0b"></div></div></div>
+        <div class="pr-sel sel-yes">SELECTED</div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#64748b;background:#fef9c3;padding:8px 12px;border-radius:6px">
+        ⚠️ Scores 5/9. Country code missing — cannot confirm this is an AU number. Fix: normalise to E.164 by prepending +61 and stripping leading 0.
+      </div>
+    </div>
+  </div>
+
+  <div class="example-box">
+    <div class="example-head">
+      <div class="example-head-left">Scenario 3 — Toll-free PRIMARY_PHONE, better number found in OTHER_PHONES (US)</div>
+      <div class="example-head-right">physassist.com · US · 8 employees</div>
+    </div>
+    <div class="example-body">
+      <div class="phone-row">
+        <div class="pr-rank">P</div>
+        <div class="pr-phone">(800) 362-8063</div>
+        <div class="pr-flags">
+          <span class="pr-flag f-local">No CC</span>
+          <span class="pr-flag f-tollfree">Toll-Free 800</span>
+          <span class="pr-flag f-nodup">Unique</span>
+          <span class="pr-flag f-valid">Valid digits</span>
+        </div>
+        <div class="pr-calc">0+0+2+0+1</div>
+        <div class="pr-score" style="color:#ef4444">3</div>
+        <div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:33%;background:#ef4444"></div></div></div>
+        <div class="pr-sel sel-no">PRIMARY</div>
+      </div>
+      <div class="phone-row">
+        <div class="pr-rank">O1</div>
+        <div class="pr-phone">+1 (615) 591-2200</div>
+        <div class="pr-flags">
+          <span class="pr-flag f-ccmatch">+1 ✓ US</span>
+          <span class="pr-flag f-e164">E.164</span>
+          <span class="pr-flag f-nodup">Unique</span>
+          <span class="pr-flag f-landline">Landline</span>
+          <span class="pr-flag f-valid">Valid digits</span>
+        </div>
+        <div class="pr-calc">+3+2+2+1+1</div>
+        <div class="pr-score" style="color:#10b981">9</div>
+        <div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:100%"></div></div></div>
+        <div class="pr-sel sel-yes">SELECTED</div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#64748b;background:#ecfdf5;padding:8px 12px;border-radius:6px">
+        ✅ OTHER_PHONES has a higher-scoring direct line. It is selected over PRIMARY_PHONE.
+      </div>
+    </div>
+  </div>
+
+  <div class="example-box">
+    <div class="example-head">
+      <div class="example-head-left">Scenario 4 — Japanese local format, 83% of JP phones look like this (JP)</div>
+      <div class="example-head-right">karaokeponpon.com · JP · unknown emp</div>
+    </div>
+    <div class="example-body">
+      <div class="phone-row">
+        <div class="pr-rank">#1</div>
+        <div class="pr-phone">(046) 386 6756</div>
+        <div class="pr-flags">
+          <span class="pr-flag f-local">No CC</span>
+          <span class="pr-flag f-nodup">Unique</span>
+          <span class="pr-flag f-landline">Local landline</span>
+          <span class="pr-flag f-valid">Valid digits</span>
+        </div>
+        <div class="pr-calc">0+2+2+0+1</div>
+        <div class="pr-score" style="color:#f59e0b">5</div>
+        <div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:55%;background:#f59e0b"></div></div></div>
+        <div class="pr-sel sel-yes">SELECTED</div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#64748b;background:#fef9c3;padding:8px 12px;border-radius:6px">
+        ⚠️ JP has 813K phones — 83% are in local format without +81 prefix. Normalising JP numbers to E.164 would be the single highest-impact accuracy fix for Japan.
+      </div>
+    </div>
+  </div>
+
+  <div class="example-box">
+    <div class="example-head">
+      <div class="example-head-left">Scenario 5 — Mobile number, micro company, gets bonus (AU)</div>
+      <div class="example-head-right">muswellbrookchamberofcommerce.com.au · AU · 1 employee</div>
+    </div>
+    <div class="example-body">
+      <div class="phone-row">
+        <div class="pr-rank">#1</div>
+        <div class="pr-phone">+61 438 517 311</div>
+        <div class="pr-flags">
+          <span class="pr-flag f-ccmatch">+61 ✓ AU</span>
+          <span class="pr-flag f-e164">E.164</span>
+          <span class="pr-flag f-mobile">Mobile (+61 4xx)</span>
+          <span class="pr-flag f-nodup">Unique</span>
+          <span class="pr-flag f-valid">Valid digits</span>
+          <span class="pr-flag" style="background:#fdf2f8;color:#be185d">Micro +1</span>
+        </div>
+        <div class="pr-calc">+3+2+2+1+1 (micro)</div>
+        <div class="pr-score" style="color:#10b981">9</div>
+        <div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:100%"></div></div></div>
+        <div class="pr-sel sel-yes">SELECTED</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="example-box">
+    <div class="example-head">
+      <div class="example-head-left">Scenario 6 — Malformed / non-numeric, should be nullified</div>
+      <div class="example-head-right">Unknown company · US</div>
+    </div>
+    <div class="example-body">
+      <div class="phone-row">
+        <div class="pr-rank">#1</div>
+        <div class="pr-phone">N/A</div>
+        <div class="pr-flags">
+          <span class="pr-flag f-tollfree">Invalid</span>
+          <span class="pr-flag f-tollfree">Non-numeric</span>
+        </div>
+        <div class="pr-calc">0+0+0+0+0</div>
+        <div class="pr-score" style="color:#ef4444">0</div>
+        <div class="pr-bar"><div class="pr-bar-track"><div class="pr-bar-fill" style="width:2%;background:#ef4444"></div></div></div>
+        <div class="pr-sel sel-no">FLAGGED</div>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#64748b;background:#fef2f2;padding:8px 12px;border-radius:6px">
+        🔴 Score 0/9. This is not a phone number. Should be nullified and treated as missing coverage — not a valid phone record.
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════ TRENDS ═══════════════ -->
+<div class="page" id="trends">
+
+  <div class="dummy-banner">
+    <span>⚠️</span>
+    <span><strong>Placeholder data</strong> — Trend charts below use illustrative weekly values. Real trend data will populate once the Snowflake stored procedure runs for 4+ consecutive weeks and the output tables are built.</span>
+  </div>
+
+  <div class="section-title">Weekly Quality Score — Global Trend</div>
+  <div class="card mb16">
+    <div class="card-head">Overall Quality Score · Coverage · Accuracy · Consistency — Last 8 Weeks</div>
+    <div class="card-sub">Global weighted averages · Score = Coverage×40% + Accuracy×40% + Consistency×20%</div>
+    <table>
+      <thead><tr>
+        <th>Week</th>
+        <th class="num">Coverage %</th>
+        <th class="num">Accuracy %</th>
+        <th class="num">Consistency %</th>
+        <th class="num">Quality Score</th>
+        <th class="num">WoW Score</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>Apr 21 2026</td><td class="num">22.8%</td><td class="num">54.1%</td><td class="num">58.4%</td><td class="num"><b>38.6</b></td><td class="num">—</td></tr>
+        <tr><td>Apr 28 2026</td><td class="num">23.4%</td><td class="num">55.3%</td><td class="num">59.2%</td><td class="num"><b>39.5</b></td><td class="num"><span class="delta-up">↑ +0.9</span></td></tr>
+        <tr><td>May 5 2026</td><td class="num">23.9%</td><td class="num">55.8%</td><td class="num">60.1%</td><td class="num"><b>40.2</b></td><td class="num"><span class="delta-up">↑ +0.7</span></td></tr>
+        <tr><td>May 12 2026</td><td class="num">24.2%</td><td class="num">56.4%</td><td class="num">61.0%</td><td class="num"><b>41.0</b></td><td class="num"><span class="delta-up">↑ +0.8</span></td></tr>
+        <tr><td>May 19 2026</td><td class="num">24.8%</td><td class="num">57.0%</td><td class="num">61.8%</td><td class="num"><b>42.0</b></td><td class="num"><span class="delta-up">↑ +1.0</span></td></tr>
+        <tr><td>May 26 2026</td><td class="num">25.2%</td><td class="num">57.4%</td><td class="num">62.3%</td><td class="num"><b>42.8</b></td><td class="num"><span class="delta-up">↑ +0.8</span></td></tr>
+        <tr><td>Jun 9 2026</td><td class="num">25.6%</td><td class="num">57.8%</td><td class="num">62.7%</td><td class="num"><b>43.6</b></td><td class="num"><span class="delta-up">↑ +0.8</span></td></tr>
+        <tr style="background:#f0fdfa"><td><b>Jun 16 2026</b></td><td class="num"><b>26.0%</b></td><td class="num"><b>58.0%</b></td><td class="num"><b>63.0%</b></td><td class="num"><b>46.0</b></td><td class="num"><span class="delta-up">↑ +2.4</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-title">Week-over-Week Issue Deltas — Latest Week (Jun 9 → Jun 16)</div>
+  <div class="card mb16">
+    <div class="card-head">Issue Count Changes — All Countries</div>
+    <div class="card-sub">Negative = improvement (fewer records affected) · Positive = regression</div>
+    <table>
+      <thead><tr>
+        <th>Country</th>
+        <th class="num">Missing Phone</th>
+        <th class="num">No CC</th>
+        <th class="num">CC Mismatch</th>
+        <th class="num">Toll-Free</th>
+        <th class="num">Duplicate</th>
+        <th class="num">Invalid Format</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>AU</b></td><td class="num"><span class="delta-up">−12,400</span></td><td class="num"><span class="delta-up">−3,100</span></td><td class="num"><span class="delta-down">+120</span></td><td class="num"><span class="delta-up">−240</span></td><td class="num"><span class="delta-up">−80</span></td><td class="num"><span class="delta-up">−45</span></td></tr>
+        <tr><td><b>NZ</b></td><td class="num"><span class="delta-up">−3,800</span></td><td class="num"><span class="delta-up">−890</span></td><td class="num"><span class="delta-up">−32</span></td><td class="num"><span class="delta-up">−110</span></td><td class="num"><span class="delta-up">−22</span></td><td class="num"><span class="delta-up">−18</span></td></tr>
+        <tr><td><b>JP</b></td><td class="num"><span class="delta-up">−18,700</span></td><td class="num"><span class="delta-up">−4,200</span></td><td class="num"><span class="delta-up">−88</span></td><td class="num"><span class="delta-up">−160</span></td><td class="num"><span class="delta-up">−41</span></td><td class="num"><span class="delta-up">−29</span></td></tr>
+        <tr><td><b>US</b></td><td class="num"><span class="delta-down">+42,000</span></td><td class="num"><span class="delta-down">+1,800</span></td><td class="num"><span class="delta-up">−210</span></td><td class="num"><span class="delta-down">+890</span></td><td class="num"><span class="delta-down">+140</span></td><td class="num"><span class="delta-up">−62</span></td></tr>
+        <tr><td><b>CA</b></td><td class="num"><span class="delta-down">+8,400</span></td><td class="num"><span class="delta-up">−320</span></td><td class="num"><span class="delta-up">−44</span></td><td class="num"><span class="delta-down">+220</span></td><td class="num"><span class="delta-up">−18</span></td><td class="num"><span class="delta-up">−14</span></td></tr>
+        <tr><td><b>Others</b></td><td class="num"><span class="delta-up">−6,200</span></td><td class="num"><span class="delta-up">−1,400</span></td><td class="num"><span class="delta-up">−98</span></td><td class="num"><span class="delta-up">−180</span></td><td class="num"><span class="delta-up">−34</span></td><td class="num"><span class="delta-up">−22</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section-title">Coverage Target Tracker — Progress to 60%</div>
+  <div class="g2">
+    <div class="card">
+      <div class="card-head">Global Coverage — Weekly Progress</div>
+      <div class="card-sub">Current: 26.0% · Target: 60% · Gap: 34.0%</div>
+      <div style="margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:12px;color:#64748b">Current</span>
+          <span style="font-size:12px;font-weight:700;color:#0d9488">26.0%</span>
+        </div>
+        <div style="background:#e8ecf4;border-radius:8px;height:20px;overflow:hidden">
+          <div style="background:linear-gradient(90deg,#0d9488,#14b8a6);height:100%;width:43.3%;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px">
+            <span style="font-size:10px;font-weight:700;color:white">26%</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px">
+          <span style="font-size:11px;color:#94a3b8">0%</span>
+          <span style="font-size:11px;color:#ef4444;font-weight:700">Target: 60%</span>
+        </div>
+      </div>
+      <div style="font-size:12px;color:#64748b;line-height:1.8">
+        At current weekly growth of <strong>~+0.5%/week</strong>, target of 60% reached in <strong>~68 weeks</strong>. To reach in 12 months (52 weeks), growth rate needs to be <strong>≥0.65%/week</strong>.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">Top 3 Countries to Prioritise for Coverage Gain</div>
+      <div class="card-sub">Ranked by absolute gap × record volume = highest potential impact</div>
+      <div style="padding:14px 16px;background:#fff7ed;border-radius:8px;border-left:4px solid #f97316;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:#1e2235">🥇 US — 10.3M records · 82.1% missing</div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px">8.47M records need a phone. Every 1M records added = +5.9% global coverage. Highest absolute impact by far.</div>
+      </div>
+      <div style="padding:14px 16px;background:#fffbeb;border-radius:8px;border-left:4px solid #f59e0b;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:700;color:#1e2235">🥈 CA — 1.3M records · 91.8% missing</div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px">1.18M records need a phone. CA has the lowest coverage rate of any market at 8.2%.</div>
+      </div>
+      <div style="padding:14px 16px;background:#f0fdf4;border-radius:8px;border-left:4px solid #10b981">
+        <div style="font-size:13px;font-weight:700;color:#1e2235">🥉 JP — 1.4M records · 42.1% missing</div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px">589K records need a phone. JP also has 83% local-format gap — normalising to E.164 improves both Coverage and Accuracy simultaneously.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showTab(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>
